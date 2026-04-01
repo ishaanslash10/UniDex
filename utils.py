@@ -1,6 +1,7 @@
 import requests
 import re
 from datetime import datetime, timedelta
+import os
 
 
 # -------------------- REG PARSER --------------------
@@ -76,7 +77,7 @@ def get_current_or_next_class(classes):
 # -------------------- LLM (GEMINI) --------------------
 from google import genai
 
-client = genai.Client(api_key="AIzaSyBjkcyggzT3u0AmP7WOsJls2TY-0j2Ufvw")
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 def ask_llm(prompt: str):
     try:
