@@ -6,9 +6,12 @@ async function send() {
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ query: input })
+        body: JSON.stringify({
+            query: input,
+            reg_no: "23bcon0479",
+            section: "SA"
+        })
     });
-
     let data = await res.json();
 
     let chat = document.getElementById("chat");
