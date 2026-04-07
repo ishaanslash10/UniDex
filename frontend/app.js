@@ -1,7 +1,7 @@
 async function send() {
     let input = document.getElementById("input").value;
 
-    let res = await fetch("https://unidex.onrender.com/chat", {
+    let res = await fetch("https://unidex.onrender.com/ask", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
