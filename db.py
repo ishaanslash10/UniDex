@@ -1,13 +1,17 @@
 import mysql.connector
 from datetime import datetime
+import os
+from urllib.parse import urlparse
 
+url = urlparse(os.getenv("DATABASE_URL"))
 
 def get_connection():
     return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="0909",
-        database="unidex"
+        host=url.hostname,
+        user=url.username,
+        password=url.password,
+        database=url.path[1:],
+        port=url.port
     )
 
 
