@@ -85,13 +85,18 @@ def get_current_or_next_class(classes):
 # -------------------- LLM (GEMINI) --------------------
 from google import genai
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+def get_gemini_client():
+    api_key = os.getenv("GEMINI_API_KEY")
+    return genai.Client(api_key=api_key)
+print("API KEY CHECK:", os.getenv("GEMINI_API_KEY"))
 
 def ask_llm(prompt: str):
     try:
+        client = get_gemini_client()
         response = client.models.generate_content(
             model="models/gemini-2.5-flash",
             contents=prompt
+
         )
         return response.text
     except Exception as e:
