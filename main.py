@@ -23,7 +23,7 @@ app.add_middleware(
 )
 
 
-@app.get("/student/{reg_no}/{section}")
+@app.post("/student/{reg_no}/{section}")
 def read_student(reg_no: str, section: str):
     student = get_student(reg_no)
 
@@ -43,7 +43,7 @@ def read_student(reg_no: str, section: str):
     return {"error": "Student not found"}
 
 
-@app.get("/ask")
+@app.post("/ask")
 def ask(query: str, reg_no: str, section: str):
 
     parsed_reg = parse_reg_no(reg_no)

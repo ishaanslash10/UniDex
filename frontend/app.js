@@ -13,5 +13,5 @@ async function send() {
 
     let chat = document.getElementById("chat");
     chat.innerHTML += `<p><b>You:</b> ${input}</p>`;
-    chat.innerHTML += `<p><b>UniDex:</b> ${data.response}</p>`;
+    chat.innerHTML += `<p><b>UniDex:</b> ${data.response || data.answer || data.message || "No response"}</p>`;
 }
