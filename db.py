@@ -23,32 +23,16 @@ def get_student(reg_no):
     return result
 
 
-def get_today_class(branch_code, semester, section):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    today = datetime.now().strftime("%A")
-
-    query = """
-    SELECT subject, room, time_slot
-    FROM time_table
-    WHERE branch_code=%s AND semester=%s AND section=%s AND day=%s
-    ORDER BY time_slot
-    """
-
-    cursor.execute(query, (branch_code, semester, section, today))
-    result = cursor.fetchall()
-
-    conn.close()
-    return result
-
-
 def get_syllabus(subject, sem=None, unit=None):
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
-    query = "SELECT * FROM syllabus WHERE subject=%s"
-    params = [subject]
+    query = "SELECT * FROM syllabus WHERE 1=1"
+    params = []
+
+    if subject is not None:
+        query += " AND subject=%s"
+        params.append(subject)
 
     if sem is not None:
         query += " AND sem=%s"
@@ -78,6 +62,16 @@ def get_classes_by_day(branch_code, semester, section, day):
 
     cursor.execute(query, (branch_code, semester, section, day))
     result = cursor.fetchall()
+
+    conn.close()
+    return result
+
+def get_all_subjects():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT DISTINCT subject FROM syllabus")
+    result = [row[0] for row in cursor.fetchall()]
 
     conn.close()
     return result

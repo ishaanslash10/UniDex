@@ -55,11 +55,11 @@ VALUES
 
 # CHANGE ONLY THESE
 pdf_path = "syllabus.pdf"
-semester = 2
-subject_name = "Engineering Mathematics-II "
+semester = 6
+subject_name = "COMPILER CONSTRUCTION".strip()
 
-start_page = 30
-end_page = 31
+start_page = 87
+end_page = 88
 
 
 units = extract_units_from_pdf(pdf_path, start_page, end_page)

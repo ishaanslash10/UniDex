@@ -2,7 +2,29 @@ import requests
 import re
 from datetime import datetime, timedelta
 import os
+import json
+from difflib import get_close_matches
+from db import get_all_subjects
 
+#  GLOBAL CACHE (PUT HERE)
+subjects_cache = None
+
+
+def match_subject(user_input: str):
+    global subjects_cache
+
+    # load only once
+    if subjects_cache is None:
+        subjects_cache = get_all_subjects()
+
+    subject_map = {s.lower(): s for s in subjects_cache}
+
+    match = get_close_matches(user_input.lower(), subject_map.keys(), n=1, cutoff=0.4)
+
+    if match:
+        return subject_map[match[0]]
+
+    return None
 
 # -------------------- REG PARSER --------------------
 def parse_reg_no(reg_no):
@@ -34,25 +56,11 @@ def calculate_sem(joining_year):
     return sem
 
 
-# -------------------- SYLLABUS TYPE --------------------
-def get_syllabus_type(section: str):
-    section = section.upper()
-
-    if section in ["SA", "SB", "SC"]:
-        return "aiml_ibm"
-
-    if len(section) == 1:
-        return "core"
-
-    return "unknown"
-
-
 # -------------------- CLASS LOGIC --------------------
 def get_current_or_next_class(classes):
     now = datetime.now().time()
 
     for c in classes:
-        # supports BOTH tuple and dict
         if isinstance(c, dict):
             subject = c["subject"]
             room = c["room"]
@@ -134,20 +142,17 @@ def parse_query(query: str):
     }
 
 
-# -------------------- DAY EXTRACTOR (UPGRADED) --------------------
+# -------------------- DAY EXTRACTOR --------------------
 def extract_day(query: str):
     query = query.lower()
     today = datetime.today()
 
-    # TODAY
     if "today" in query:
         return today.strftime("%A")
 
-    # TOMORROW
     if "tomorrow" in query:
         return (today + timedelta(days=1)).strftime("%A")
 
-    # DAY NAMES
     days_map = {
         "monday": 0,
         "tuesday": 1,
@@ -162,7 +167,6 @@ def extract_day(query: str):
         if day in query:
             return day.capitalize()
 
-    # NEXT MONDAY
     match = re.search(r"next (monday|tuesday|wednesday|thursday|friday|saturday|sunday)", query)
     if match:
         target_day = days_map[match.group(1)]
@@ -173,7 +177,6 @@ def extract_day(query: str):
 
         return (today + timedelta(days=days_ahead)).strftime("%A")
 
-    # DATE (extract inside sentence)
     date_match = re.search(r'(\d{1,2}\s+[a-zA-Z]+|\d{1,2}/\d{1,2}(/\d{2,4})?)', query)
 
     if date_match:
@@ -190,21 +193,20 @@ def extract_day(query: str):
 
     return None
 
-import json
-import re
 
+# -------------------- INTENT DETECTOR --------------------
 def detect_intent(query: str):
     prompt = f"""
-ONLY return valid JSON. No explanation.
+ONLY return valid JSON.
 
-Classify the query into:
+Classify into:
 - timetable
 - syllabus
 - general
 
-Also extract:
-- subject
-- unit
+Also extract subject and unit.
+
+Query: {query}
 
 Format:
 {{
@@ -212,16 +214,11 @@ Format:
   "subject": "...",
   "unit": null
 }}
-
-Query: {query}
 """
 
     try:
         response = ask_llm(prompt)
-
-        # CLEAN RESPONSE
         cleaned = re.sub(r"```json|```", "", response).strip()
-
         data = json.loads(cleaned)
 
         return {
@@ -230,10 +227,44 @@ Query: {query}
             "unit": data.get("unit")
         }
 
-    except Exception as e:
-        print("Intent error:", e)
+    except:
         return {
             "intent": "general",
             "subject": None,
             "unit": None
         }
+    
+
+def extract_semester(query: str):
+    q = query.lower()
+
+    sem_map = {
+        "1": 1, "1st": 1, "first": 1,
+        "2": 2, "2nd": 2, "second": 2,
+        "3": 3, "3rd": 3, "third": 3,
+        "4": 4, "4th": 4, "fourth": 4,
+        "5": 5, "5th": 5, "fifth": 5,
+        "6": 6, "6th": 6, "sixth": 6,
+        "7": 7, "7th": 7, "seventh": 7,
+        "8": 8, "8th": 8, "eighth": 8,
+    }
+
+    for key, val in sem_map.items():
+        if f"{key} sem" in q or f"{key} semester" in q:
+            return val
+
+    return None
+
+
+def match_subject(user_input: str):
+    user_input = user_input.lower()
+
+    subjects = get_all_subjects()  #  dynamic now
+    subject_map = {s.lower(): s for s in subjects}
+
+    match = get_close_matches(user_input, subject_map.keys(), n=1, cutoff=0.4)
+
+    if match:
+        return subject_map[match[0]]
+
+    return None
