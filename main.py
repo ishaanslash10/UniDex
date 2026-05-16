@@ -1,18 +1,29 @@
-from fastapi import FastAPI 
-from fastapi.middleware.cors import CORSMiddleware
-from utils import extract_semester
 from datetime import datetime
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from utils import is_small_talk
-from db import get_student, get_syllabus, get_classes_by_day
+
+from db import (
+    get_classes_by_day,
+    get_student,
+    get_syllabus
+)
+
 from utils import (
-    parse_reg_no,
-    calculate_sem,
     ask_llm,
-    extract_day,
+    calculate_sem,
     detect_intent,
+    extract_day,
+    extract_semester,
+    is_small_talk,
+    parse_reg_no,
     web_search
 )
+
+# ============================================================
+# FastAPI Application Setup
+# ============================================================
 
 app = FastAPI()
 
@@ -24,32 +35,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ============================================================
+# In-Memory Conversation Storage
+# ============================================================
+
 conversation_memory = {}
+
+session_memory = {}
+
+
+# ============================================================
+# Request Models
+# ============================================================
+
 class QueryRequest(BaseModel):
     query: str
     reg_no: str
     section: str
 
 
-# 🧠 Session memory
-session_memory = {}
-
+# ============================================================
+# Session Utilities
+# ============================================================
 
 def save_session(reg_no, query, intent):
+
     session_memory[reg_no] = {
         "last_query": query,
         "last_intent": intent
     }
 
 
+# ============================================================
+# Student Endpoint
+# ============================================================
+
 @app.post("/student/{reg_no}/{section}")
 def read_student(reg_no: str, section: str):
+
     student = get_student(reg_no)
 
     parsed = parse_reg_no(reg_no)
+
     sem = calculate_sem(parsed["year"])
 
     if student:
+
         return {
             "reg_no": student[0],
             "name": student[1],
@@ -62,53 +93,102 @@ def read_student(reg_no: str, section: str):
     return {"error": "Student not found"}
 
 
+# ============================================================
+# Main Chat Endpoint
+# ============================================================
+
 @app.post("/ask")
 def ask(data: QueryRequest):
 
     query = data.query
     reg_no = data.reg_no
     section = data.section
+
     if reg_no not in conversation_memory:
         conversation_memory[reg_no] = []
 
-    # GET SESSION
-    session = session_memory.get(reg_no, {
-        "last_query": None,
-        "last_intent": None
-    })
+    # ========================================================
+    # Session Context
+    # ========================================================
+
+    session = session_memory.get(
+        reg_no,
+        {
+            "last_query": None,
+            "last_intent": None
+        }
+    )
 
     parsed_reg = parse_reg_no(reg_no)
+
     sem = calculate_sem(parsed_reg["year"])
 
     forced_sem = extract_semester(query)
+
     if forced_sem:
         sem = forced_sem
 
     q = query.lower()
 
-    # SAFE CONTEXT MERGE
+    # ========================================================
+    # Context Merge For Timetable Follow-Ups
+    # ========================================================
+
     if session["last_intent"] == "timetable":
-        if session["last_query"] and any(word in q for word in [
-            "today", "tomorrow", "monday", "tuesday",
-            "wednesday", "thursday", "friday"
-        ]):
+
+        if (
+            session["last_query"]
+            and any(
+                word in q
+                for word in [
+                    "today",
+                    "tomorrow",
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday"
+                ]
+            )
+        ):
+
             if len(query.split()) <= 2:
+
                 query = session["last_query"] + " " + query
-                q = query.lower()  #  IMPORTANT FIX
 
-    # -------- DATE --------
+                q = query.lower()
+
+    # ========================================================
+    # Date Queries
+    # ========================================================
+
     if "date" in q:
-        today = datetime.now().strftime("%d %B %Y")
-        save_session(reg_no, query, "general")
-        return {"response": f"Today's date is {today}."}
 
-    # -------- TIME --------
-    if "time" in q:
-        now = datetime.now().strftime("%I:%M %p")
+        today = datetime.now().strftime("%d %B %Y")
+
         save_session(reg_no, query, "general")
-        return {"response": f"Current time is {now}."}
-    
-    # -------- SMALL TALK --------
+
+        return {
+            "response": f"Today's date is {today}."
+        }
+
+    # ========================================================
+    # Time Queries
+    # ========================================================
+
+    if "time" in q:
+
+        now = datetime.now().strftime("%I:%M %p")
+
+        save_session(reg_no, query, "general")
+
+        return {
+            "response": f"Current time is {now}."
+        }
+
+    # ========================================================
+    # Small Talk
+    # ========================================================
 
     if is_small_talk(query):
 
@@ -125,22 +205,59 @@ def ask(data: QueryRequest):
 
         return {"response": response}
 
-    # -------- INTENT --------
-    if any(word in q for word in ["class", "classes", "timetable", "schedule"]) or \
-        ("today" in q and any(word in q for word in ["class", "schedule"])):
+    # ========================================================
+    # Intent Detection
+    # ========================================================
+
+    if (
+        any(
+            word in q
+            for word in [
+                "class",
+                "classes",
+                "timetable",
+                "schedule"
+            ]
+        )
+        or (
+            "today" in q
+            and any(
+                word in q
+                for word in [
+                    "class",
+                    "schedule"
+                ]
+            )
+        )
+    ):
+
         intent = "timetable"
+
         subject = None
+
         unit = None
 
-    elif any(word in q for word in ["syllabus", "unit", "subject"]):
+    elif any(
+        word in q
+        for word in [
+            "syllabus",
+            "unit",
+            "subject"
+        ]
+    ):
+
         intent_data = detect_intent(query)
+
         intent = "syllabus"
+
         subject = intent_data["subject"]
+
         unit = intent_data["unit"]
 
-        #  FIX: force general if no subject detected
-        # KEEP SYLLABUS INTENT ONLY
-        # FOR PURE SYLLABUS REQUESTS
+        # ====================================================
+        # Prevent General Subject Conversations
+        # From Triggering Syllabus Intent
+        # ====================================================
 
         if intent == "syllabus" and subject is None:
 
@@ -155,21 +272,37 @@ def ask(data: QueryRequest):
                 keyword in q
                 for keyword in syllabus_keywords
             ):
+
                 intent = "general"
 
     else:
+
         intent_data = detect_intent(query)
+
         intent = intent_data["intent"]
+
         subject = intent_data["subject"]
+
         unit = intent_data["unit"]
 
-    # -------- TIMETABLE --------
+    # ========================================================
+    # Timetable Queries
+    # ========================================================
+
     if intent == "timetable":
+
         day = extract_day(query)
 
         if not day:
+
             save_session(reg_no, query, intent)
-            return {"response": "Specify a day like today, tomorrow, Monday etc."}
+
+            return {
+                "response": (
+                    "Specify a day like today, "
+                    "tomorrow, Monday etc."
+                )
+            }
 
         classes = get_classes_by_day(
             branch_code=parsed_reg["branch_code"],
@@ -179,38 +312,76 @@ def ask(data: QueryRequest):
         )
 
         if not classes:
+
             save_session(reg_no, query, intent)
-            return {"response": "No classes!!!."}
+
+            return {
+                "response": "No classes!!!."
+            }
 
         formatted = []
 
         for i, c in enumerate(classes, 1):
+
             formatted.append(
-                f"{i}. {c['time_slot']} → {c['subject']} in {c['room']} ({c['faculty']})"
+                f"{i}. "
+                f"{c['time_slot']} → "
+                f"{c['subject']} in "
+                f"{c['room']} "
+                f"({c['faculty']})"
             )
 
-        combined = "Here is your schedule:\n\n" + "\n".join(formatted) + "\n\nGood luck for your classes!"
+        combined = (
+            "Here is your schedule:\n\n"
+            + "\n".join(formatted)
+            + "\n\nGood luck for your classes!"
+        )
 
         save_session(reg_no, query, intent)
+
         return {"response": combined}
 
-    # -------- SYLLABUS --------
+    # ========================================================
+    # Syllabus Queries
+    # ========================================================
+
     elif intent == "syllabus":
 
         if subject is None:
-            full_data = get_syllabus(None, sem=sem)
+
+            full_data = get_syllabus(
+                None,
+                sem=sem
+            )
+
             if not full_data:
+
                 full_data = get_syllabus(None)
+
         else:
-            full_data = get_syllabus(subject, sem=sem, unit=unit)
+
+            full_data = get_syllabus(
+                subject,
+                sem=sem,
+                unit=unit
+            )
+
             if not full_data:
-                full_data = get_syllabus(subject, unit=unit)
+
+                full_data = get_syllabus(
+                    subject,
+                    unit=unit
+                )
 
         if not full_data:
-            save_session(reg_no, query, intent)
-            return {"response": "No syllabus found."}
 
-        subject_name = full_data[0]['subject']
+            save_session(reg_no, query, intent)
+
+            return {
+                "response": "No syllabus found."
+            }
+
+        subject_name = full_data[0]["subject"]
 
         combined = f"{subject_name}\n\n"
 
@@ -221,7 +392,12 @@ def ask(data: QueryRequest):
                 f"{row['content']}\n\n"
             )
 
+        # ====================================================
+        # Explanation Mode
+        # ====================================================
+
         if "explain" in query.lower():
+
             answer = ask_llm(f"""
             You are a helpful teacher.
 
@@ -237,14 +413,22 @@ def ask(data: QueryRequest):
 
             {combined}
             """)
+
             save_session(reg_no, query, intent)
+
             return {"response": answer}
 
         save_session(reg_no, query, intent)
+
         return {"response": combined}
 
-    history = "\n".join(conversation_memory[reg_no][-4:])
-    # -------- GENERAL --------
+    # ========================================================
+    # General Queries
+    # ========================================================
+
+    history = "\n".join(
+        conversation_memory[reg_no][-4:]
+    )
 
     save_session(reg_no, query, intent)
 
@@ -275,7 +459,13 @@ def ask(data: QueryRequest):
     """
 
     answer = ask_llm(prompt)
-    conversation_memory[reg_no].append(f"User: {query}")
-    conversation_memory[reg_no].append(f"Assistant: {answer}")
+
+    conversation_memory[reg_no].append(
+        f"User: {query}"
+    )
+
+    conversation_memory[reg_no].append(
+        f"Assistant: {answer}"
+    )
 
     return {"response": answer}
