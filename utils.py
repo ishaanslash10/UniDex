@@ -5,6 +5,7 @@ import os
 import json
 from difflib import get_close_matches
 from db import get_all_subjects
+from tavily import TavilyClient
 
 #  GLOBAL CACHE (PUT HERE)
 subjects_cache = None
@@ -94,7 +95,7 @@ def ask_llm(prompt: str):
     try:
         client = get_gemini_client()
         response = client.models.generate_content(
-            model="models/gemini-2.5-flash",
+            model="models/gemini-3.1-flash-lite",
             contents=prompt
 
         )
@@ -273,3 +274,46 @@ def match_subject(user_input: str):
         return subject_map[match[0]]
 
     return None
+
+
+
+tavily = TavilyClient(api_key="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")
+
+def web_search(query):
+
+    response = tavily.search(
+        query=query,
+        search_depth="basic",
+        max_results=3
+    )
+
+    results = []
+
+    for r in response["results"]:
+        results.append(
+            f"{r['title']}\n{r['content']}"
+        )
+
+    return "\n\n".join(results)
+
+def is_small_talk(query):
+
+    prompt = f"""
+    Classify this message.
+
+    If it is casual conversation, greeting, joke, thanks,
+    farewell, or normal human chat, respond ONLY with:
+
+    SMALL_TALK
+
+    Otherwise respond ONLY with:
+
+    SEARCH
+
+    Message:
+    {query}
+    """
+
+    result = ask_llm(prompt)
+
+    return "SMALL_TALK" in result.upper()

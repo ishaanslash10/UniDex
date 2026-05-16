@@ -1,17 +1,13 @@
 import mysql.connector
 from datetime import datetime
 import os
-from urllib.parse import urlparse
-
-url = urlparse(os.getenv("DATABASE_URL"))
 
 def get_connection():
     return mysql.connector.connect(
-        host=url.hostname,
-        user=url.username,
-        password=url.password,
-        database=url.path[1:],
-        port=url.port
+        host="localhost",
+        user="root",
+        password="0909",
+        database="unidex"
     )
 
 
@@ -58,7 +54,7 @@ def get_classes_by_day(branch_code, semester, section, day):
     cursor = conn.cursor(dictionary=True)
 
     query = """
-    SELECT subject, room, time_slot
+    SELECT subject, room, time_slot, faculty
     FROM time_table
     WHERE branch_code=%s AND semester=%s AND section=%s AND day=%s
     ORDER BY time_slot
@@ -69,6 +65,7 @@ def get_classes_by_day(branch_code, semester, section, day):
 
     conn.close()
     return result
+
 
 def get_all_subjects():
     conn = get_connection()

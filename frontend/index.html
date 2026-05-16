@@ -1,20 +1,428 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" translate="no">
+
 <head>
-    <title>UniDex</title>
-    <link rel="stylesheet" href="style.css">
+
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <meta
+    name="google"
+    content="notranslate"
+  />
+
+  <title>UniDex AI</title>
+
+  <!-- MAIN CSS -->
+
+  <link rel="stylesheet" href="style.css">
+
+  <!-- FONT AWESOME -->
+
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+  />
+
+  <!-- TS PARTICLES -->
+
+  <script src="https://cdn.jsdelivr.net/npm/tsparticles@2/tsparticles.bundle.min.js"></script>
+
 </head>
+
 <body>
 
-<div class="terminal">
-    <h1>UniDex</h1>
+  <!-- PARTICLES -->
 
-    <div id="chat"></div>
+  <div id="particles"></div>
 
-    <input id="input" placeholder="Ask something..." />
-    <button onclick="send()">Send</button>
-</div>
+  <!-- ══════════════════════════════════════
+       LOGIN SCREEN
+  ══════════════════════════════════════ -->
 
-<script src="app.js"></script>
+  <div
+    id="loginScreen"
+    class="login-screen"
+  >
+
+    <div class="login-wrapper">
+
+      <!-- LEFT SIDE -->
+
+      <div class="login-brand">
+
+        <div class="brand-glow"></div>
+
+        <h1 class="brand-main">
+          UniDex
+        </h1>
+
+        <p class="brand-desc">
+
+          AI-Powered Academic Assistant System for smart timetable retrieval,
+          syllabus access, and conversational academic support.
+
+        </p>
+
+        <div class="brand-line"></div>
+
+        <span class="brand-mini">
+
+          FAST • INTELLIGENT • CONVERSATIONAL
+
+        </span>
+
+      </div>
+
+      <!-- RIGHT SIDE -->
+
+      <div class="login-card">
+
+        <div class="login-top">
+
+          <h2>
+            Welcome Back
+          </h2>
+
+          <p>
+            Enter your academic credentials
+          </p>
+
+        </div>
+
+        <div class="field-group">
+
+          <!-- REG NUMBER -->
+
+          <div class="input-wrap">
+
+            <input
+              type="text"
+              id="regNo"
+              required
+              autocomplete="off"
+            >
+
+            <label>
+              Registration Number
+            </label>
+
+          </div>
+
+          <!-- SECTION -->
+
+          <div class="input-wrap">
+
+            <input
+              type="text"
+              id="section"
+              required
+              autocomplete="off"
+            >
+
+            <label>
+              Section
+            </label>
+
+          </div>
+
+        </div>
+
+        <!-- LOGIN BUTTON -->
+
+        <button
+          class="btn-primary"
+          onclick="login()"
+        >
+
+          Access UniDex →
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════
+       MAIN APP
+  ══════════════════════════════════════ -->
+
+  <div
+    id="mainApp"
+    class="app-layout"
+    style="display:none;"
+  >
+
+    <!-- ══════════════════════════════════════
+         SIDEBAR
+    ══════════════════════════════════════ -->
+
+    <aside class="sidebar">
+
+      <!-- BRAND -->
+
+      <div class="sidebar-brand">
+        UniDex
+      </div>
+
+      <!-- NAVIGATION -->
+
+      <nav class="sidebar-nav">
+
+        <!-- NEW CHAT -->
+
+        <div
+          class="nav-item active"
+          onclick="newChat()"
+        >
+
+          <span class="nav-icon">
+
+            <i class="fa-regular fa-pen-to-square"></i>
+
+          </span>
+
+          <span>
+            New Chat
+          </span>
+
+        </div>
+
+        <!-- RECENTS LABEL -->
+
+        <div class="nav-label">
+          RECENTS
+        </div>
+
+        <!-- RECENT SEARCH TOGGLE -->
+
+        <div
+          class="nav-item"
+          onclick="toggleHistory()"
+        >
+
+          <span class="nav-icon">
+
+            <i class="fa-regular fa-clock"></i>
+
+          </span>
+
+          <span>
+            Recent Searches
+          </span>
+
+        </div>
+
+        <!-- CLEAR HISTORY -->
+
+        <div
+          class="clear-history"
+          onclick="clearHistory()"
+        >
+
+          <i class="fa-solid fa-trash-can"></i>
+
+          <span>
+            Clear History
+          </span>
+
+        </div>
+
+      </nav>
+
+      <!-- DIVIDER -->
+
+      <div class="sidebar-divider"></div>
+
+      <!-- COLLAPSIBLE HISTORY -->
+
+      <div
+        class="history-wrapper collapsed"
+        id="historyWrapper"
+      >
+
+        <div
+          class="history-list"
+          id="history"
+        ></div>
+
+      </div>
+
+      <!-- USER CARD -->
+
+      <div
+        class="user-card"
+        id="userCard"
+      >
+
+        <!-- AVATAR -->
+
+        <div
+          class="user-avatar"
+          id="userAvatar"
+        >
+          I
+        </div>
+
+        <!-- INFO -->
+
+        <div class="user-info">
+
+          <!-- NAME -->
+
+          <div
+            class="user-name"
+            id="userName"
+          >
+            Loading...
+          </div>
+
+          <!-- META -->
+
+          <div
+            class="user-meta"
+            id="userMeta"
+          >
+            UniDex Student
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- LOGOUT -->
+
+      <div
+        class="nav-item nav-item--danger logout-btn"
+        onclick="logout()"
+      >
+
+        <span class="nav-icon">
+
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+
+        </span>
+
+        <span>
+          Logout
+        </span>
+
+      </div>
+
+    </aside>
+
+    <!-- ══════════════════════════════════════
+         MAIN PANEL
+    ══════════════════════════════════════ -->
+
+    <div class="main-panel">
+
+      <!-- CHAT AREA -->
+
+      <div
+        class="chat-area"
+        id="chat"
+      >
+
+        <!-- DYNAMIC AI LOADER -->
+
+        
+
+      </div>
+
+      <!-- HERO -->
+
+      <div
+        class="hero"
+        id="logoBox"
+      >
+
+        <div class="hero__logo">
+          UniDex
+        </div>
+
+        <div class="hero__tag">
+          Talk to your own Assistant
+        </div>
+
+      </div>
+
+      <!-- INPUT BAR -->
+
+      <div
+        class="input-bar"
+        id="inputBox"
+      >
+
+        <!-- MIC -->
+
+        <span
+          class="input-icon"
+          onclick="startVoice()"
+          title="Voice input"
+        >
+
+          <i class="fa-solid fa-microphone"></i>
+
+        </span>
+
+        <!-- FILE -->
+
+        <span
+          class="input-icon"
+          onclick="uploadFile()"
+          title="Upload file"
+        >
+
+          <i class="fa-regular fa-folder-open"></i>
+
+        </span>
+
+        <!-- INPUT -->
+
+        <input
+          id="input"
+          placeholder="Ask anything..."
+          autocomplete="off"
+        >
+
+        <!-- SEND -->
+
+        <span
+          class="input-icon input-icon--send"
+          onclick="send()"
+          title="Send"
+        >
+
+          <i class="fa-solid fa-arrow-up"></i>
+
+        </span>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- FILE INPUT -->
+
+  <input
+    type="file"
+    id="fileInput"
+    hidden
+    onchange="handleFile(event)"
+  >
+
+  <!-- APP JS -->
+
+  <script src="app.js"></script>
+
 </body>
+
 </html>
