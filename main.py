@@ -176,7 +176,7 @@ def ask(data: QueryRequest):
     # Time Queries
     # ========================================================
 
-    if "time" in q:
+    if "time " in q:
 
         now = datetime.now().strftime("%I:%M %p")
 
